@@ -1,0 +1,876 @@
+##data filtration 
+
+def DNA_complement(seq):
+    complement=''
+    for letter in seq:
+        if letter=='A':
+            complement+='T'
+        if letter=='T':
+            complement+='A'
+        if letter=='C':
+            complement+='G'
+        if letter=='G':
+            complement+='C'
+    return complement
+
+#translation into 6 frames
+
+def translate(seq):
+
+    table = {
+        'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
+        'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
+        'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
+        'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',                 
+        'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L',
+        'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
+        'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q',
+        'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
+        'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V',
+        'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
+        'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E',
+        'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
+        'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S',
+        'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
+        'TAC':'Y', 'TAT':'Y', 'TAA':'_', 'TAG':'_',
+        'TGC':'C', 'TGT':'C', 'TGA':'_', 'TGG':'W',
+        'GTn':'V', 'GCn':'A', 'GGn':'G', 'TCn':'S',
+        'ACn':'T', 'CTn':'L', 'CCn':'P', 'CGn':'R',
+    }
+    seq1=seq[0::]
+    seq2=seq1[1::]
+    seq3=seq1[2::]
+    complement_seq=DNA_complement(seq1)
+    
+    rev_seq1 = complement_seq[::-1]
+    rev_seq2 = rev_seq1[1::]
+    rev_seq3 = rev_seq1[2::]
+        
+    frames=[seq1,seq2,seq3,rev_seq1,rev_seq2,rev_seq3]
+    prot_frames=[]
+    for f in frames:
+        
+        protein =""
+        #if len(f)%3==1:
+            #fr=f[:-1:]
+        #elif len(f)%3==2:
+            #fr=f[:-2:]
+        #else:
+            #fr=f
+        
+        for i in range(0, len(f), 3):
+            codon = f[i:i + 3]
+            if codon in table.keys(): 
+                protein+= table[codon]
+            else:
+                protein+= 'X'
+        prot_frames.append(protein)
+    
+    return prot_frames
+
+#search of reading frames
+
+def framecut(frames, wide=3):
+    end_mode=False
+    cutted_frames=[]
+    for fr in frames:
+        end_mode=False
+        frames_list=[]
+        
+        start=0
+        while end_mode==False:
+            fr1=fr[start:]
+            if 'M' in fr1:
+                
+                beg1=fr1.find('M')
+                beg=beg1+start
+                beg_fr=fr1[beg1:]
+                if '_' in beg_fr:
+                    
+                    end1=fr1.find('_', beg1)
+                    end=end1+start
+                    
+                else:
+                    end=len(fr)
+                    end_mode=True
+                    
+                subframe=fr[beg:end]
+                if end_mode==True:
+                    subframe+='!'
+                else:
+                    frames_list.append([subframe,beg,end])
+                
+                start=end+1
+                
+            else:
+                frames_list.append(['',0,0])
+                end_mode=True
+                
+        fl= frames_list
+        max_frame=['',0,0]
+        for frame in fl:
+            if len(frame[0])>25 and len(frame[0])>len(max_frame[0]):
+                max_frame=frame
+                
+        cutted_frames.append(max_frame)
+  
+    
+        
+    max_result=cutted_frames[0]
+    res_ind=0
+    for ind in range(1,wide):
+        if len(cutted_frames[ind][0])>len(max_result[0]):
+            #if len((max_result[0]))>40:
+                #print(max_result, res_ind)
+                #print(cutted_frames[ind],ind,'\n')
+            max_result=cutted_frames[ind]
+            res_ind=ind
+        
+    return max_result,res_ind
+
+
+#commented array generation
+
+def comments(cutted_frames):
+    commented_frames=[]
+    
+    if cutted_frames[0]!='Empty frame':
+        commented_frames.append('forward1: '+cutted_frames[0]+'\n')
+    if cutted_frames[1]!='Empty frame':
+        commented_frames.append('forward2: '+cutted_frames[1]+'\n')
+    if cutted_frames[2]!='Empty frame':
+        commented_frames.append('forward3: '+cutted_frames[2]+'\n')
+    if cutted_frames[3]!='Empty frame':
+        commented_frames.append('reverse1: '+cutted_frames[3]+'\n')
+    if cutted_frames[4]!='Empty frame':
+        commented_frames.append('reverse2: '+cutted_frames[4]+'\n')
+    if cutted_frames[5]!='Empty frame':
+        commented_frames.append('reverse3: '+cutted_frames[5]+'\n')
+    return commented_frames
+
+#cutoff 
+
+def seqcut(seq):
+    beg=0
+    end=len(seq)
+    q1=seq[0:int(len(seq)/4)]
+
+    if 'n' in q1:
+        beg=int(len(seq)/4)-q1[::-1].find('n')
+    
+    q4=seq[int(3*len(seq)/4):]
+    if 'n' in q4:
+        end=int(3*len(seq)/4)+q4.find('n')
+    seq=seq[beg:end]
+    
+    #print(seq)
+    while 'CCACGCGTCC' in seq:
+        seq=seq[10:]
+        
+    while 'GGACGCGTGGG'in seq:
+        seq=seq[11:]
+        
+    return seq
+
+
+def vector_cut(seq):
+    print(seq)
+    if 'C' in seq:
+        print(1)
+        seq=seq[12:]
+    
+    return seq
+    
+
+def breaking_test(seq):
+    test=0
+    if len(seq)<60:
+        test=1
+    middle=seq[int(len(seq)/4):int(3*len(seq)/4)]
+    if 'n' in middle:
+        test=1
+    return test
+
+
+tran = 'Transcriptome.txt'
+outfile='Transcriptome_cutted.txt'
+c=0
+seq=''
+name='_2'
+with open(tran, 'r') as fin, open(outfile, 'w') as fout:
+    for line in fin:
+        c+=1
+        if line.startswith('>'):
+            print (line.split('_'))
+            if name.split('_')[1]=='1\n':
+                name=name[:-3]+'\n'
+                fout.write(name)
+            new_seq=seq.replace('X','X')
+            new_seq+='\n'
+            
+            fout.write(new_seq)
+            name=line
+            seq=''
+        else: 
+            seq+=line[:-1]
+
+#translation frames from raw dataset 
+
+fasta = 'Mesobuthus_eupeus.fasta'
+outfile='Meu_protein_transcriptome_uncutted.txt'
+counter=0
+sequence=''
+
+with open(fasta, 'r') as fin, open(outfile, 'w') as fout:
+    for line in fin:
+        if line.startswith('>'):
+            counter+=1
+            if sequence!='':
+                com_seq='sequence: ' + sequence +'\n'
+                
+                #optional output of DNA
+                #fout.write(com_seq)
+                
+                translation_results=translate(sequence)
+                fout.writelines(comments(translation_results))
+
+#secondary transformation
+
+input_file = 'Meu_protein_transcriptome_uncutted.txt'
+seq_counter=0
+file_counter=1
+
+output_format = 'Mesobuthus_eupeus_{}.fasta'
+output_file = output_format.format(file_counter)
+output_file = 'Total_peptides_uncutted.fasta'
+sample_name =''
+
+with open(input_file, 'r') as fin, open(output_file, 'w') as fout:
+        for line in fin:
+            if line.startswith('>'):
+                #if #sample_name!='':
+                    #saml
+                sample_name=line
+            else:
+                frame_name=line.split(':')[0]
+                seq=line.split(':')[1]
+                fout.write(sample_name[:-1]+'.'+frame_name+'\n')
+                fout.write(seq)
+                print(seq)
+                seq_counter+=1
+                sequence=''
+            fout.write(line)
+        else:
+            sequence+=line[:-1]
+    com_seq='sequence: ' + sequence+'\n'
+    #fout.write(com_seq)
+    translation_results=translate(seqcut(sequence))
+    fout.writelines(comments(translation_results))
+
+#optional split of data into several files for feeding a large dataset directly into SignalP or BlastX.
+            #if seq_counter==999:
+                #file_counter+=1
+                #fout.close()
+                #output_file = output_format.format(file_counter)
+                #fout=open(output_file, 'w')
+                #seq_counter=0
+
+#regular expression search
+
+import re
+
+ICK = '[A-Z]*C......C.....CC[A-Z]*'
+CS_alpha_beta = '[A-Z]*C[A-Z][A-Z][A-Z]C[A-Z]*C[^C]C[A-Z]*'
+CS_alpha_alpha = 'M[A-Z]*C[^C][^C][^C]C[^C]*C[^C][^C][^C]C[^C]*_'
+Kunitz = '[A-Z]*C........................C....................C...C[A-Z]*'
+alpha_like = '..D.YI[A-Z]*NC...C[A-Z]*C...C[A-Z]*G.C[A-Z]*C.C...P[A-Z]*'
+bet_like = '..D.YI[A-Z]*NC...C[A-Z]*C...C[A-Z]*G.C[A-Z]*C.C...P[A-Z]*'
+
+motif_name = 'Kunitz_beg_broken'
+motif = CS_alpha_beta
+output_format = '{}.fasta'
+output_file = output_format.format(motif_name)
+
+mature_peptides = 'Unique_mature_peptids.fasta'
+raw_translations = 'Total_peptides_uncutted.fasta'
+subgroup = 'CS_alpha_beta.fasta'
+input_file = raw_translations
+
+
+pep_counter=0
+
+with open(input_file, 'r') as fin, open(output_file, 'w') as fout:
+    for line in fin:
+        if line.startswith('>'):
+            samp=line
+        else:
+            match = re.findall(motif, line)
+            if match!=[]:
+                pep_counter+=1
+                fout.write(samp)
+                
+                seq=match[0][:-1]+'\n'
+                fout.write(seq)
+                
+print(pep_counter)
+
+
+
+    
+#deletion of ununique sequences
+
+
+raw_results = 'All_frames_submit.fasta'
+filtered_results = 'Unique_All_frames_submit.fasta'
+
+seq_list=[]
+samp_list=[]
+
+with open(raw_results, 'r') as fin, open(filtered_results, 'w') as fout:
+    for line in fin:
+        if line.startswith('>'):
+            samp = line
+        else:
+            seq = line
+            if seq not in seq_list:
+                seq_list.append(seq)
+                samp_list.append(samp)
+    for prot in range(0, len(seq_list)):
+        fout.write(samp_list[prot])
+        fout.write(seq_list[prot])
+
+#Blast output processing
+
+import re
+samp_sch = 'i....[.].....[.].*'
+list_check=False
+counter=0
+align='K8F13YYY014-Alignment.txt'
+outfile='align_analysis.txt'
+with open(align, 'r') as fin, open(outfile, 'w') as fout:
+    for line in fin:
+        #counter+=1
+        if line.startswith('Query #'):
+            samp=line.split(sep=' ')[2]
+            print(samp)
+        if line.startswith(' '):
+            list_check=False
+        if line=='':
+            list_check=False
+        if list_check==True:
+            #print (counter)
+            #cover=line[122:126].split('%')[0]
+            #ident=line[134:140]
+            access=line[152:162].split(' ')[0]
+            #stats={'Query cover':cover, 'Identity procent': ident,  'Accession':access}
+            if access[0]=='P':
+                print (getSeq(access))
+            list_check=False
+            #print (list_check)
+        if line.startswith('Description'):
+            list_check=True
+        if line=='':
+            list_check=False
+        if line==' ':
+            list_check=False
+        #print (line)
+            #match = re.findall(motif, line)
+            #if match!=[]:
+                #m=match[0]+'\n'
+                #fout.write(samp)
+                #fout.write(m)/
+
+def Blast_extraction(Blast_file_name):
+    quality_k=[]
+    names=[]
+    codes=[]
+    annotation_status=[]
+    list_check=False
+    with open(Blast_file_name, 'r') as infile:
+        for line in infile:
+            if line.startswith('Query #'):
+                samp=line.split(sep=' ')[2]
+                samp_main=samp.split('.')[0] + '.' + samp.split('.')[1] + '.' + samp.split('.')[2]
+                names.append(samp_main)
+            if line.startswith('No significant similarity found'):
+                annotation_status+=[0]
+                quality_k+=[0]
+                codes+=['']
+            if list_check==True:
+                #print (counter)
+                cover=int(line[122:126].split('%')[0])/100
+                ident=float(line[134:140])/100
+                code=line[152:162].split(' ')[0]
+                quality=ident*cover
+                quality_k.append(quality)
+                codes+=[code]
+            
+                list_check=False
+            if line.startswith('Description'):
+                list_check=True
+                annotation_status+=[1]
+    blast_first_sample_data=[names,annotation_status,quality_k,codes]    
+    return(blast_first_sample_data)
+
+def Blast_manual_results(csv_file_name):
+    manual_group=[]
+    manual_reference=[]
+    with open(csv_file_name, 'r') as infile:
+        for line in infile:
+            manual=line.split(',')
+            manual_group+=[manual[1]]
+            manual_reference+=[manual[2]]
+    return([manual_group,manual_reference])
+            
+manual_blast_groups=['BlastP_SP_CSab','BlastP_notSP_CSab','BlastP_notSP_CSab_light','BlastP_SP_notCSab']
+manual_total_data=[]
+for g in manual_blast_groups:
+    blast_name=g+'.txt'
+    manual_name=g+'.csv'
+    manual_local_data=Blast_extraction(blast_name)+Blast_manual_results(manual_name)
+    
+    manual_total_data.append(manual_local_data)
+
+manual_total_data_united=[]
+for param in range(len(manual_total_data[0])):
+    param_list=[]
+    for group in manual_total_data:
+        param_list+=group[param]
+    manual_total_data_united.append(param_list)
+    
+for l in manual_total_data_united:
+    print(l[0])   
+
+    
+def Blast_manual_data_addition(dataset, united_dataset):
+    
+    
+    
+    annotation_status_list=[0]*len(full_seq_names)
+    annotation_quality_list=[0]*len(full_seq_names)
+    annotation_group_list=['']*len(full_seq_names)
+    annotation_reference_list=['']*len(full_seq_names)
+    annotation_reference_obj_list=['']*len(full_seq_names)
+    CSab_hard_SP=[0]*len(full_seq_names)
+    CSab_hard=[0]*len(full_seq_names)
+    CSab_light=[0]*len(full_seq_names)
+    SP=[0]*len(full_seq_names)
+    
+    for seq_ind in range(len(full_seq_names)):
+        if full_seq_names[seq_ind] in united_dataset[0]:
+            index=united_dataset[0].index(full_seq_names[seq_ind])
+            
+            annotation_status_list[seq_ind]=united_dataset[1][index]
+            annotation_quality_list[seq_ind]=united_dataset[2][index]
+            annotation_group_list[seq_ind]=united_dataset[3][index]
+            annotation_reference_list[seq_ind]=united_dataset[4][index]
+            annotation_reference_obj_list[seq_ind]=united_dataset[5][index]
+        if full_seq_names[seq_ind] in dataset[0][0]:
+            CSab_hard_SP[seq_ind]=1
+        if full_seq_names[seq_ind] in dataset[1][0]+dataset[0][0]:
+            CSab_hard[seq_ind]=1
+        if full_seq_names[seq_ind] in dataset[2][0]+dataset[1][0]+dataset[0][0]:
+            CSab_light[seq_ind]=1
+        if full_seq_names[seq_ind] in dataset[3][0]+dataset[0][0]:
+            SP[seq_ind]=1
+    manual_data=[annotation_status_list,annotation_reference_list,annotation_quality_list,annotation_group_list,annotation_reference_obj_list,SP,CSab_light,CSab_hard,CSab_hard_SP ]
+    return(manual_data)
+
+manual_an_data=Blast_manual_data_addition(manual_total_data, manual_total_data_united)
+
+
+#generation of files for Genbank
+
+
+
+raw_results = 'Mesobuthus_eupeus_submit.fasta'
+commented_results = 'Me_commented_200bp.fsa'
+feature_table = 'Mesobuthus_eupeus_features.tbl'
+all_frames='All_frames_submit.fasta'
+
+
+KTx=[]
+KTx_data='names_KTx.txt'
+with open(KTx_data, 'r') as KDa:
+    for line in KDa:
+        KTx.append(line[:-1])
+
+NaTx_double='names_NaTx.txt'
+full_NaTx=[]
+with open(NaTx_double, 'r') as NaDo:
+    for line in NaDo:
+        full_NaTx.append(line[:-1])
+
+NaTx_data='NaTx_submit.txt'
+NaTx={}
+with open(NaTx_data, 'r') as NaDa:
+    for line in NaDa:
+        codename=line.split(',')
+        NaTx[codename[0]]=codename[1][:-1]
+        
+NaTx_exceptions=[]
+for name in full_NaTx:
+    if name not in NaTx.keys():
+        NaTx_exceptions.append(name)
+        
+exceptions=NaTx_exceptions+KTx
+counter=0
+writemode=0
+basic_comment=' [organism=Mesobuthus eupeus] [tissue-type=venom glands] [moltype=mRNA] [plasmid-name=pBlueScript SK+]\n'
+
+with open(raw_results, 'r') as fin, open(commented_results, 'w') as fout, open(feature_table,'w') as tbl, open(all_frames,'w') as all_fr:
+    for line in fin:
+        if line.startswith('>'):
+            if writemode==1:
+                if breaking_test(sequence)==0:
+                    
+                    new_sequence=seqcut(sequence)
+                    if len(new_sequence)>199:
+                        
+                        CDS,fn=framecut(translate(new_sequence))
+                        
+                        if CDS!=['', 0, 0]:
+                            
+                            CDS_start=CDS[1]*3+fn+1
+                            CDS_end=CDS[2]*3+fn
+                            if '_' in CDS[0]:
+                                print(CDS,name)
+                                print(new_sequence)
+                                print(framecut(translate(new_sequence)))
+                                print(translate(new_sequence[CDS_start:CDS_end]))
+                        else:
+                            CDS,fn=framecut(translate(new_sequence),6)
+                            if CDS!=['', 0, 0]:
+                                CDS_start=len(new_sequence)-CDS[1]*3+3-fn
+                                CDS_end=len(new_sequence)-CDS[2]*3+3-fn
+                                
+                                
+                                if '_' in CDS[0]:
+
+                                    print(CDS,name)
+                                    #print(new_sequence)
+                                    #print(new_sequence[int(CDS_end):int(CDS_start)])
+                                    #print(translate(new_sequence[int(CDS_end):int(CDS_start)]))
+                            
+                        if CDS!=['', 0, 0]:
+                            if fn==0:
+                                 fn_str='f1'
+                            if fn==1:
+                                fn_str='f2'
+                            if fn==2:
+                                fn_str='f3'
+                            if fn==3:
+                                fn_str='r1'
+                            if fn==4:
+                                fn_str='r2'
+                            if fn==5:
+                                fn_str='r3'
+                        
+                            all_fr.write(('>'+name+','+fn_str+'\n'))
+                            all_fr.write((CDS[0]+'\n'))
+                            
+                            Feature_string='>Feature ' + new_name.split(' ')[0][1:] + '\n'
+                            tbl.write(Feature_string)
+                            
+                            if name in NaTx.keys():
+                                feature_name = 'sodium channel scorpion toxin ' + NaTx[name]
+                            else:
+                                counter+=1
+                                feature_name = 'possible scorpion venom peptide ' +str(counter)
+                            #print(name,CDS,CDS_start,CDS_end)
+                            CDS_string=str(CDS_start) + '\t'+ str(CDS_end) + '\tCDS\t\t\n\t\t\tproduct\t'+feature_name+'\n'
+                            tbl.write(CDS_string)
+                            
+                            fout.write(new_name)
+                            while len(new_sequence)>60:
+                                fout.write(new_sequence[0:60]+'\n')
+                                new_sequence=new_sequence[60:]
+                            fout.write(new_sequence+'\n')
+                        else:
+                            if new_name[1]!='i':
+                                print(new_name)
+                            
+            #if counter==499:
+                #break
+            sequence=''        
+            writemode=0
+            name=line[1:-1]
+            if name not in exceptions:
+                if name in NaTx.keys():
+                    new_name = '>' + NaTx[name] + ' [note=' + name + ']' + basic_comment 
+                else:
+                    new_name = '>' + name + basic_comment
+                writemode=1
+        else:
+            if writemode==1:
+                sequence+=line[:-1] 
+
+#Blast2GO analysis
+                  
+full_seq_names=[]
+input_file='Mesobuthus_eupeus.fasta'
+with open(input_file, 'r') as inf:
+    for li in inf:
+        if li.startswith('>'):
+            full_seq_names.append(li[1:-1])
+            
+def Blast2GO_status_addition(Blast2GO_file_name):
+    
+    go_dict={}
+    go_list=[]
+    
+    with open(Blast2GO_file_name, 'r') as infile:
+        for line in infile:
+            if line.startswith('GO'):
+                continue
+            
+            line_s=line.split('\t')
+            #print(line_s)
+            try:
+                line_l=line_s[2].split(', ')
+    
+            except IndexError:
+                print(line_s)
+            
+            line_l[-1]=line_l[-1][:-1]
+            go_dict[line_s[0]]=line_l
+            go_list+=line_l
+    
+    NaTx_names=go_dict['sodium channel inhibitor activity']+go_dict['sodium channel regulator activity']
+    KClTx_names=go_dict['potassium channel inhibitor activity']+go_dict['potassium channel regulator activity']+go_dict['chloride channel regulator activity']
+
+    cDNA_seq_list=[0]*len(full_seq_names)
+    translated_seq_list=[0,0,0,0,0,0]*len(full_seq_names)
+
+    GO_annotation_status_list=[0]*len(full_seq_names)
+    GO_annotation_toxin_status_list=[0]*len(full_seq_names)
+    GO_annotation_KClTx_status_list=[0]*len(full_seq_names)
+    GO_annotation_NaTx_status_list=[0]*len(full_seq_names)
+
+    for seq_ind in range(len(full_seq_names)):
+        if full_seq_names[seq_ind] in set(go_list):
+            GO_annotation_status_list[seq_ind]=1
+        if full_seq_names[seq_ind] in go_dict['toxin activity']:
+            GO_annotation_toxin_status_list[seq_ind]=1
+        if full_seq_names[seq_ind] in KClTx_names:
+            GO_annotation_KClTx_status_list[seq_ind]=1
+        if full_seq_names[seq_ind] in NaTx_names:
+            GO_annotation_NaTx_status_list[seq_ind]=1  
+    
+    GO_annotation_data=[GO_annotation_status_list,GO_annotation_toxin_status_list,GO_annotation_KClTx_status_list,GO_annotation_NaTx_status_list]
+    return(GO_annotation_data)
+
+
+Blast2GO_analyses_names = ['go_arthropoda_swiss_translated.txt','go_arthropoda_swiss.txt','go_arthropoda_nr.txt']
+Blast2GO_analyses_data = []
+for gr in Blast2GO_analyses_names:
+    GO_status_array=Blast2GO_status_addition(gr)
+    
+    
+    Blast2GO_analyses_data.append(GO_status_array)
+
+#transcriptome and proteome comparison
+
+datasets_transcriptome=['Scorpions_XPro_AV-1','Scorpions_XPro_AV-2']
+accessions=[]
+for ds in datasets_transcriptome:
+    protein_data=ds+'/'+ds+'/proteins.csv'
+    with open(protein_data, 'r') as fin:
+        for line in fin:
+            if line.startswith('Protein'):
+                continue
+            else:
+                accessions.append(line.split(',')[2])
+
+accessions=list(set(accessions))
+
+proteom_status_list=[0]*len(full_seq_names)
+for seq_ind in range(len(full_seq_names)):
+    if full_seq_names[seq_ind] in accessions:
+        proteom_status_list[seq_ind]=1
+print(proteom_status_list)
+with open('proteom_data.csv', 'w') as fout:
+    for i in proteom_status_list:
+        fout.write(str(i)+'\n')
+
+
+uniprot_accessions=[]
+datasets_uniprot=['AV-1','AV-2']
+for ds in datasets_uniprot:
+    protein_data= ds+'/'+ds+'/db.proteins.csv'
+    with open(protein_data, 'r') as fin:
+        for line in fin:
+            if line.startswith('"Protein'):
+                continue
+            else:
+                line_list=line.split(',')
+                accession=[line_list[2],line_list[-1]]
+                if line_list[1]=='true':
+                    uniprot_accessions.append(accession)
+
+  #AMP analysis
+
+  AMP_max_min_status=[]
+with open('AMPdata.csv', 'r') as fin:
+    for line in fin:
+        if line.startswith('num'):
+                continue
+        else:
+            line_list=line.split(',')
+            name=line_list[1].split('_')[0][1:]
+            print(name)
+                
+            AMP_statuses=[line_list[6],line_list[7],line_list[9],line_list[10],line_list[12],line_list[14],line_list[15][:-1]]
+            
+            AMP_max_status=1
+            for AMPst in AMP_statuses:
+                if AMPst!='AMP':
+                    AMP_max_status=0
+            
+            if 'AMP' in AMP_statuses:
+                AMP_min_status=1
+            else:
+                AMP_min_status=0
+            #print(AMP_statuses,AMP_min_status,AMP_max_status)    
+            AMP_max_min_status.append([name,AMP_min_status,AMP_max_status])
+            
+
+with open('AMP_status_data.csv', 'w') as fout:
+    fout.write(status)
+    
+    
+    for seq in full_seq_names:
+        write_status=0
+        for n in range(len(AMP_max_min_status)):
+            
+            if AMP_max_min_status[n][0]==seq:
+                status=str(AMP_max_min_status[n][1])+','+str(AMP_max_min_status[n][2])+'\n'
+                
+                write_status=1
+        
+        if write_status==1:
+            fout.write(status)
+            #fout.write(str(AMP_max_min_status[n][1])+','+str(AMP_max_min_status[n][2])+'\n')
+        else:
+            fout.write('0,0\n')
+
+#mass calculation
+
+def seq_masses(sequence,amidation_status,mode):
+    mass=0
+    #aa_masses ={'A':71.0788,'R':156.1875,'N':114.1038,'D':115.0886,'C':103.1388,
+                #'E':129.1155,'Q':128.1307,'G':57.0519,'H':137.1411,'I':113.1594,
+               #'L':113.1594,'K':128.1741,'M':131.1926,'F':147.1766,'P':97.1167,
+               #'S':87.0782,'T':101.1051,'W':186.2132,'Y':163.1760,'V':99.1326}
+    aa_masses ={'A':89.0935,'R':174.2017,'N':132.1184,'D':133.1032,'C':121.159,
+                'E':147.1299,'Q':146.1451,'G':75.0669,'H':155.1552,'I':131.1736,
+               'L':131.1736,'K':146.1882,'M':149.2124,'F':165.19,'P':115.131,
+               'S':105.093,'T':119.1197,'W':204.2262,'Y':181.1894,'V':117.1469}
+
+    if mode=='mono'
+        mass+=aa_masses[aa]
+    
+    for aa in sequence:
+        mass+=aa_masses[aa]
+        if aa=='C':
+            mass-=1.008
+    
+    mass-=18.015*(len(sequence)-1)
+    mass-=amidation_status
+    return mass
+
+def ref_masses(mass):
+    ref_dict= {7334:['1.19','1.23','1.28','1.31','2.28','2.29','2.30'],7786:['1.21'],8601:['1.22'],8375:['1.22'],8212:['1.22'],
+              6125:['1.22','1.24'],8945:['1.22'],9311:['1.22'],7767:['1.25'],7917:['1.25'],
+              8108:['1.25','2.23'],7749:['1.25'],7319:['1.26'],7179:['1.28','1.30'],7195:['1.28'],
+              7150:['1.28'],7322:['1.28','1.30','2.24','2.27'],7522:['1.28'],7176:['1.29','2.26'],7312:['1.29'],
+              7525:['1.29'],6083:['1.29'],6889:['1.30'],7442:['1.30'],7735:['1.28'],
+              9596:['1.30'],7128:['1.32'],7337:['1.33'],7002:['1.33','2.24','2.30'],7682:['1.33'],
+              7855:['1.33'],7201:['1.34'],7545:['1.34'],7233:['1.35','2.32'],7579:['1.35'],
+              7461:['1.36','1.37'],7158:['1.36'],7044:['1.36'],7458:['1.39'],6452:['1.40'],
+              7755:['1.42'],8463:['2.16'],7437:['2.16'],7952:['2.16'],8131:['2.17'],
+              7879:['2.17'],7374:['2.18'],8596:['2.18'],8158:['2.19'],8447:['2.19'],
+              6119:['2.21'],6123:['2.22'],7764:['2.23'],6189:['2.23'],7124:['2.28'],
+              7456:['2.24'],7608:['2.24'],7799:['2.24'],6036:['2.24'],7554:['2.28'],
+              8075:['2.25'],7731:['2.25'],8423:['2.25'],7059:['2.25'],6725:['2.25'],
+              7867:['2.27'],8294:['2.28'],6998:['2.29'],7680:['2.29'],7198:['2.31','2.32'],
+              7543:['2.31'],7577:['2.32']}
+    keys_list=list(ref_dict.keys())
+    ref_list=[]
+    for key in keys_list:
+        if abs(mass-key)<4:
+            ref_list+=ref_dict[key]
+    ref_list=list(set(ref_list))
+            
+    return ref_list
+
+print(ref_masses(7333))
+
+def C_end_cut(sequence):
+    amidation_status=0
+    
+    if sequence[-1] in ['R','K']:
+        while sequence[-1] in ['R','K']:
+            sequence=sequence[:-1]
+    if sequence[-1]=='G':
+        sequence=sequence[:-1]
+        amidation_status=1
+    
+    
+    return sequence, amidation_status
+
+names=[]
+sequences=[]
+
+input_data='../my_protocol/SignalP_CSab_noX.fasta'
+with open(input_data, 'r') as fin:
+    for line in fin:
+        if line.startswith('>'):
+            names.append(line[1:-4])
+        else:
+            sequences.append(line[:-1])
+
+C_amidation_status_list=[0]*len(full_seq_names)
+masses_list=['']*len(full_seq_names)
+reference_status_list=['']*len(full_seq_names)
+
+for seq_ind in range(len(full_seq_names)):
+    if full_seq_names[seq_ind] in names:
+        index=names.index(full_seq_names[seq_ind])
+        
+        rude_seq=sequences[index]
+        cut_seq,amid=C_end_cut(rude_seq)
+        if amid==1:
+            C_amidation_status_list[seq_ind]=1
+            #print(mass)
+        mass=seq_masses(cut_seq,amid)
+        masses_list[seq_ind]=str(int(mass))
+        if ref_masses(mass)!=[]:
+            reference_status_list[seq_ind]=ref_masses(mass)
+#print(masses_list)      
+        
+#print(C_amidation_status_list)
+#print(masses_list)
+#print(reference_status_list)
+with open('reference_data_4.csv', 'w') as fout:
+    for i in range(len(C_amidation_status_list)):
+        line=''
+        line+=(str(C_amidation_status_list[i])+',')
+        line+=masses_list[i]+','
+        
+        ref=reference_status_list[i]
+        #print(ref)
+        if ref!='':
+            ref_line=ref[0]
+            if len(ref)>1:
+                for r in range(len(ref)-1):
+                    ref_line+=(';'+ref[r+1])
+        else:
+            ref_line=''
+        line+=ref_line
+        
+        line+='\n'
+        print(line)
+        fout.write(line)
+
+  
